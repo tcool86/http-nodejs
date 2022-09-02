@@ -53,24 +53,29 @@ app.get('/session', cors(corsOptionsDelegate), (req, res) => {
 	res.send(sessionId);
 });
 
-app.post('/contact', urlEncodedParser, (req, res) => {
-	const sessionId = req.sessionID;
-	if (!req.session || !sessionId) {
-		const error = `bad session`;
-		res.status(500).json({ error: error });
-		res.end();
-		return;
+app.post(
+	'/contact',
+	cors(corsOptionsDelegate),
+	urlEncodedParser,
+	(req, res) => {
+		const sessionId = req.sessionID;
+		if (!req.session || !sessionId) {
+			const error = `bad session`;
+			res.status(500).json({ error: error });
+			res.end();
+			return;
+		}
+		const { from, subject, message, email } = req.body;
+		if (!from || !subject || !message || !email) {
+			const error = `missing body details\n - from: ${from}\n - email: ${email}\n - subject: ${subject}\n - message: ${message}\n`;
+			res.status(401).json({ error: error });
+			res.end();
+			return;
+		}
+		const smsBody = `\n🤖 incoming message:\n${from} at ${email}\nsubject: ${subject}\n\n${message}`;
+		sendMessage(smsBody);
+		res.json({ message: `sent` });
 	}
-	const { from, subject, message, email } = req.body;
-	if (!from || !subject || !message || !email) {
-		const error = `missing body details\n - from: ${from}\n - email: ${email}\n - subject: ${subject}\n - message: ${message}\n`;
-		res.status(401).json({ error: error });
-		res.end();
-		return;
-	}
-	const smsBody = `\n🤖 incoming message:\n${from} at ${email}\nsubject: ${subject}\n\n${message}`;
-	sendMessage(smsBody);
-	res.json({ message: `sent` });
-});
+);
 
 app.listen(8000);
