@@ -61,14 +61,14 @@ app.post('/contact', urlEncodedParser, (req, res) => {
 		res.end();
 		return;
 	}
-	const { from, subject, message } = req.body;
-	if (!from || !subject || !message) {
-		const error = `missing body details\n - from: ${from}\n - subject: ${subject}\n - message: ${message}\n`;
+	const { from, subject, message, email } = req.body;
+	if (!from || !subject || !message || !email) {
+		const error = `missing body details\n - from: ${from}\n - email: ${email}\n - subject: ${subject}\n - message: ${message}\n`;
 		res.status(401).json({ error: error });
 		res.end();
 		return;
 	}
-	const smsBody = `🤖: ${from}\n${subject}\n${message}`;
+	const smsBody = `\n🤖 incoming message:\n${from} at ${email}\nsubject: ${subject}\n\n${message}`;
 	sendMessage(smsBody);
 	res.json({ message: `sent` });
 });
