@@ -3,7 +3,7 @@ const app = express();
 
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const cookieParser = require('cookie-parser');
+const session = require('express-session');
 
 const md5 = require('md5');
 const sendMessage = require('./message.js');
@@ -12,33 +12,40 @@ const jsonParser = bodyParser.json();
 const urlEncodedParser = bodyParser.urlencoded({ extended: false });
 
 app.use(jsonParser);
-app.use(cookieParser());
 app.use(cors());
-
-const allowlist = ['http://www.timcool.me', 'https://www.timcool.me'];
-const corsOptionsDelegate = (req, callback) => {
-	let corsOptions;
-	if (allowlist.indexOf(req.header('Origin')) !== -1) {
-		corsOptions = { origin: true };
-	} else {
-		corsOptions = { origin: false };
-	}
-	callback(null, corsOptions);
-};
-
-app.get('/', (req, res) => {
-	res.send('hello world');
-});
 
 const getHash = (info) => {
 	const content = `${info}-${process.env.SECRET_HASH}`;
 	return md5(content);
 };
 
-const checkHash = (hash, target) => {
-	const hashedTarget = getHash(target);
-	return hash === hashedTarget;
+const sesh = {
+	genid: function (req) {
+		return getHash(req.ip);
+	},
+	secret: getHash('key'),
+	cookie: {},
 };
+
+if (app.get('env') === 'production') {
+	app.set('trust proxy', 1);
+	sesh.cookie.secure = true;
+}
+
+app.use(session(sesh));
+
+const allowlist = ['http://www.timcool.me', 'https://www.timcool.me'];
+const corsOptionsDelegate = (req, callback) => {
+	const originName = req.header('Origin');
+	let useOrigin = allowlist.indexOf(originName) !== -1;
+	callback(null, {
+		origin: useOrigin,
+	});
+};
+
+app.get('/', (req, res) => {
+	res.send(`tcool is online 🛰`);
+});
 
 app.get('/session', cors(corsOptionsDelegate), (req, res) => {
 	const sessionId = getHash(req.ip);
@@ -47,8 +54,8 @@ app.get('/session', cors(corsOptionsDelegate), (req, res) => {
 });
 
 app.post('/contact', urlEncodedParser, (req, res) => {
-	const { sessionId } = req.cookies;
-	if (!checkHash(sessionId, req.ip)) {
+	const sessionId = req.sessionID;
+	if (!req.session || !sessionId) {
 		const error = `bad session`;
 		res.status(500).json({ error: error });
 		res.end();
